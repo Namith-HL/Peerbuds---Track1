@@ -1,0 +1,271 @@
+    <!DOCTYPE html>
+    <html ng-app="myApp">
+    <head >
+        <meta charset="utf-8">
+        <title>Track 1 </title>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+
+        <!-- jQuery library -->
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+
+        <!-- Latest compiled JavaScript -->
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular.min.js"></script>
+        <script src="xml2json.min.js" > </script>
+        <style>
+            .row-bordered:after {
+              content: "";
+              display: block;
+              border-bottom: 1px solid #ccc;
+              margin: 0 15px;
+          }
+      </style>
+      <script type="text/javascript">
+
+        var app = angular.module("myApp", [])
+        app.service('hexafy',function($http,$q){
+            var deferred = $q.defer();
+            this.myFunc =function(){
+                $http.get("Comments.xml",
+                {
+                    transformResponse: function (cnv) {
+                        var x2js = new X2JS();
+                        var aftCnv = x2js.xml_str2json(cnv);
+                        return aftCnv;
+                    }
+                })
+                .success(function (response) {
+                 deferred.resolve(response.comments.row)
+             });
+                return deferred.promise;
+            }
+
+           
+        });
+
+        app.service('getPosts',function($http,$q){
+            var deferred = $q.defer();
+
+
+            this.myPosts =function(){
+                $http.get("Posts.xml",
+                {
+                    transformResponse: function (cnv) {
+                        var x2js = new X2JS();
+                        var aftCnv = x2js.xml_str2json(cnv);
+                        return aftCnv;
+                    }
+                })
+                .success(function (response) {
+
+                 deferred.resolve(response.posts.row)
+             });
+                return deferred.promise;
+            }
+        });
+        
+
+        app.controller('myCtrl',function($scope,$http,hexafy,getPosts){
+            var tage = [];
+
+            $http.get("Tags.xml",
+            {
+                transformResponse: function (cnv) {
+                    var x2js = new X2JS();
+                    var aftCnv = x2js.xml_str2json(cnv);
+                    return aftCnv;
+                }
+            })
+            .success(function (response) {
+                $scope.tags = response.tags.row;
+                angular.forEach($scope.tags, function(value, key) {
+                        //console.log( value);
+                    });
+                    //console.log($scope.tags);
+                });
+
+            $http.get("Posts.xml",
+            {
+                transformResponse: function (cnv) {
+                    var x2js = new X2JS();
+                    var aftCnv = x2js.xml_str2json(cnv);
+                    return aftCnv;
+                }
+            })
+            .success(function (response) {
+                $scope.posts = response.posts.row
+
+                angular.forEach(response.posts.row, function(value, key) {
+                    if(value._Tags){
+                            //console.log(value._Tags)
+                        }
+                    });
+            });
+            $scope.stripAddr = function(data){
+                if(data){
+                    var res = data.replace(/</g,"").replace(/>/g,',');
+                    var str = res.toUpperCase();
+                    return str;
+                }
+            }
+            var arr = [];
+
+            $scope.getusers = function(userid){
+                  //var users = users.getuser();
+                  arr = [];
+
+                  hexafy.myFunc().then(function(data) {
+
+                    angular.forEach(data, function(value, key) {
+                        
+                        if(value._UserId == userid){
+                            arr.push(value._PostId);
+                        }
+                    });
+                    
+
+                });
+
+
+              }
+
+              $scope.getcomments =function(){
+                $scope.postusers = [];
+                $scope.userPost = [];
+                var postarr = [];
+                getPosts.myPosts().then(function(data) {
+                    angular.forEach(data, function(value, key) {
+                        if(value._OwnerUserId === $scope.userid){
+                            $scope.userPost.push(value);
+                        }
+                    });
+                });
+
+                hexafy.myFunc().then(function(data) {
+                    angular.forEach(data, function(value, key) {
+
+                        if(value._UserId===$scope.userid){
+
+                           $scope.postusers.push(value);
+                       }
+
+                   });
+                    
+                });
+                $scope.commusers = [];
+                var users = hexafy.myFunc();
+                hexafy.myFunc().then(function(data) {
+
+
+                    angular.forEach(data, function(value, key) {
+                       // console.log( value._PostId);
+                       var index = arr.indexOf(value._PostId);
+                            //console.log(arr);
+                            if(index > -1){
+
+                                $scope.commusers.push(value);
+
+                            }
+                            
+                        });
+                    
+                });
+            }
+
+
+
+        })
+
+
+
+    </script> 
+    <style type="text/css">
+        
+        .border{
+            
+            border: 1px solid #ddd;
+            box-shadow: 2px 2px 1px  #ddd;
+            
+            
+        }
+        .header h5{
+            background-color: #D3D3D3;
+            padding:5px;
+        }
+    </style>
+
+    </head>
+    <body ng-controller="myCtrl" > 
+
+    
+      <div class="container" >
+         <div class="row">
+             <div class="col-md-8 col-md-offset-4" style="margin-top: 20px;">
+              <input type="text" id="userid" ng-model="userid" ng-change="getusers(userid)" placeholder= "Enter User Id (Eg: 21) "/>
+              <button ng-click="getcomments()">Get Results </button>
+          </div>
+      </div>
+
+
+    
+
+      <u><h4 ng-if="userPost" class="lead"> User Post Details</h4></u> 
+      <table class="table table-striped" ng-if="userPost">
+        <thead >
+          <tr>
+            <th>ViewCount</th>
+            <th>Score</th>
+            <th>Post Title</th>
+            <th>CommentCount</th>
+            <th>AcceptAnswerId</th>
+
+        </tr>
+    </thead>
+    <tbody>
+        <tr ng-repeat="data in userPost">
+            <td > {{(data._ViewCount)? data._ViewCount:'None'}} </td> 
+            <td > {{(data._Score)? data._Score:'None'}} </td>
+            <td >{{(data._Title)? data._Title:'None'}}  </td> 
+            <td >{{(data._CommentCount)? data._CommentCount:'None'}} </td>
+            <td >{{(data._AcceptedAnswerId)? data._AcceptedAnswerId:'None'}} </td>
+        </tr>
+    </tbody>
+    </table>
+
+    <div class="row" >
+      <div class="col-md-7">
+          <div class="pull-right border">
+          <div class="header">
+            <h5 ng-if="postusers" >  <strong> Post ids this user has commented </strong></h5>
+            </div>
+            <div ng-repeat="data in postusers" class="text-center">
+
+               <p > {{data._PostId}} </p>     
+           </div>
+       </div>
+
+       <div class="pull-left border"> 
+       <div class="header">
+        <h5  ng-if="commusers">  <strong>User ids who also commented on same post </strong> </h5>
+        </div>
+        <div ng-repeat="data in commusers" class="text-center">
+            <p ng-if="data._UserId!=userid"> {{data._UserId}} </p>     
+        </div>
+    </div>
+    </div>
+    </div>
+    <div class="row" style="margin-top: 40px;">
+    <div class="jumbotron">
+        <div ng-repeat="data in posts" >
+            <div class="row row-bordered"  ng-if="data._Tags">
+                <div class="col-md-4 " > Catgories - {{stripAddr(data._Tags)}}</div> 
+                <div class="col-md-8 "  >{{data._Title}} </div>
+            </div>
+        </div>
+   </div>
+
+    </div>
+    </div>
+
+    </body>
+    </html>
